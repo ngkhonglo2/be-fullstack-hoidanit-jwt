@@ -8,6 +8,8 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1', { exclude: [''] });
+
+  //whitelist bỏ các trường thừa đẩy lên từ fe
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   const port = configService.get('PORT');
   await app.listen(port);
