@@ -10,7 +10,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1', { exclude: [''] });
 
   //whitelist bỏ các trường thừa đẩy lên từ fe
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+  );
   const port = configService.get('PORT');
   await app.listen(port);
 }
