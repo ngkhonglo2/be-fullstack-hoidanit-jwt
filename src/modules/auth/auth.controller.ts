@@ -9,7 +9,11 @@ import {
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './passport/local-auth.guard';
 import { Public, ResponseMessage } from '@/decorator/customize';
-import { CodeAuthDto, CreateAuthDto } from './dto/create-auth.dto';
+import {
+  ChangePasswordAuthDto,
+  CodeAuthDto,
+  CreateAuthDto,
+} from './dto/create-auth.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Controller('auth')
@@ -43,6 +47,18 @@ export class AuthController {
   @Post('retry-active')
   retryActive(@Body('email') email: string) {
     return this.authService.handleRetryActive(email);
+  }
+
+  @Public()
+  @Post('retry-password')
+  retryPassword(@Body('email') email: string) {
+    return this.authService.handleRetryPassword(email);
+  }
+
+  @Public()
+  @Post('change-password')
+  changePassword(@Body() data: ChangePasswordAuthDto) {
+    return this.authService.handleChangePassword(data);
   }
 
   @Public()

@@ -7,7 +7,11 @@ import { Model } from 'mongoose';
 import { hashPasswordHelper } from '@/helpers/util';
 import aqp from 'api-query-params';
 import mongoose from 'mongoose';
-import { CodeAuthDto, CreateAuthDto } from '../auth/dto/create-auth.dto';
+import {
+  ChangePasswordAuthDto,
+  CodeAuthDto,
+  CreateAuthDto,
+} from '../auth/dto/create-auth.dto';
 import { v4 as uuidv4 } from 'uuid';
 import * as dayjs from 'dayjs';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -134,10 +138,7 @@ export class UsersService {
     const isBeforeCheck = dayjs().isBefore(user.codeExpired);
     if (isBeforeCheck) {
       //valid
-      await this.userModel.updateOne(
-        { _id: codeAuthrDto._id },
-        { isActive: true },
-      );
+      await user.updateOne({ isActive: true });
       return { isBeforeCheck };
     } else {
       throw new BadRequestException('Mã code đã hết hạn');
@@ -156,10 +157,10 @@ export class UsersService {
     }
 
     // update user trước
-    await this.userModel.updateOne(
-      { _id: user._id },
-      { codeId: codeId, codeExpired: dayjs().add(5, 'minutes') },
-    );
+    await user.updateOne({
+      codeId: codeId,
+      codeExpired: dayjs().add(5, 'minutes'),
+    });
     //resend email
     this.mailerService.sendMail({
       to: user.email, // list of receivers
@@ -172,5 +173,59 @@ export class UsersService {
       },
     });
     return { _id: user._id };
+  }
+
+  async retryPassword(email: string) {
+    const codeId = uuidv4();
+    const user = await this.userModel.findOne({ email });
+
+    if (!user) {
+      throw new BadRequestException('Tài khoản không tồn tại');
+    }
+
+    // update user trước
+    await user.updateOne({
+      codeId: codeId,
+      codeExpired: dayjs().add(5, 'minutes'),
+    });
+    //resend email
+    this.mailerService.sendMail({
+      to: user.email, // list of receivers
+      subject: 'Change your password account at @PHONGNT', // Subject line
+      // html: '<b>welcome</b>', // HTML body content
+      template: 'register.hbs',
+      context: {
+        name: user.name ?? user.email,
+        activationCode: codeId,
+      },
+    });
+    return { _id: user._id, email: user.email };
+  }
+
+  async changePassword(data: ChangePasswordAuthDto) {
+    if (data.password !== data.confirmPassword) {
+      throw new BadRequestException(
+        'Mật khẩu/xác nhận mật khẩu không chính xác',
+      );
+    }
+    const user = await this.userModel.findOne({
+      email: data.email,
+      codeId: data.code,
+    });
+
+    if (!user) {
+      throw new BadRequestException('Tài khoản không tồn tại');
+    }
+
+    //check code expire
+    const isBeforeCheck = dayjs().isBefore(user.codeExpired);
+    if (isBeforeCheck) {
+      //valid
+      const newPassword = await hashPasswordHelper(data.password);
+      await user.updateOne({ password: newPassword });
+      return { isBeforeCheck };
+    } else {
+      throw new BadRequestException('Mã code đã hết hạn');
+    }
   }
 }
