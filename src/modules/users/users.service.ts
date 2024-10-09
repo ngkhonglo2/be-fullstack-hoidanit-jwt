@@ -143,4 +143,34 @@ export class UsersService {
       throw new BadRequestException('Mã code đã hết hạn');
     }
   }
+
+  async retryActive(email: string) {
+    const codeId = uuidv4();
+    const user = await this.userModel.findOne({ email });
+
+    if (!user) {
+      throw new BadRequestException('Tài khoản không tồn tại');
+    }
+    if (user.isActive) {
+      throw new BadRequestException('Tài khoản đã tồn taij');
+    }
+
+    // update user trước
+    await this.userModel.updateOne(
+      { _id: user._id },
+      { codeId: codeId, codeExpired: dayjs().add(5, 'minutes') },
+    );
+    //resend email
+    this.mailerService.sendMail({
+      to: user.email, // list of receivers
+      subject: 'Activate your account at @PHONGNT', // Subject line
+      // html: '<b>welcome</b>', // HTML body content
+      template: 'register.hbs',
+      context: {
+        name: user.name ?? user.email,
+        activationCode: codeId,
+      },
+    });
+    return { _id: user._id };
+  }
 }
